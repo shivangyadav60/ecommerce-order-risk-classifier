@@ -1,0 +1,99 @@
+import pandas as pd
+import math
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import keras
+
+mf = pd.read_csv(r"synthetic_ecommerce_order_risk_dataset.csv") # Replace with the path of dataset I provided accordingly.
+print(mf.shape)# Shape of data
+# Risk label mapping 
+mf['risk_label'] = mf['risk_label'].map({
+    'Normal': 0,
+    'Fraud Risk': 1,
+    'Return Risk': 2
+})
+
+print(mf.risk_label.value_counts(normalize=True)) # Printing the number of each risk mapping.
+
+# Categorical variables
+cat_var = ['order_id',	'order_date', 'country', 'device_type',	'traffic_source', 'payment_method',	'product_category']
+
+# Numerical variables
+num_var = ['customer_age_days',	'previous_orders', 'avg_order_value_eur', 'order_value_eur',	'quantity',	'discount_rate', 'shipping_distance_km', 'delivery_days_estimated',	'late_delivery_risk', 'address_mismatch', 'high_risk_ip', 'customer_support_contacts', 'review_score',	'is_returned', 'is_fraud']
+
+# One hoe encoding of categorical variables
+mf = pd.get_dummies(mf, columns=cat_var)
+
+# Test and train split
+test_mf = mf.sample(frac=0.3, random_state=42)
+train_mf = mf.drop(test_mf.index)
+
+# Input variables
+train_X = train_mf.drop('risk_label', axis=1)
+test_X = test_mf.drop('risk_label', axis=1)
+
+# True value of the data
+train_Y = train_mf['risk_label']
+test_Y = test_mf['risk_label']
+
+# Normalizing data type
+train_X = train_X.to_numpy().astype('float32')
+test_X = test_X.to_numpy().astype('float32')
+
+train_Y = train_Y.to_numpy().astype('int32')
+test_Y = test_Y.to_numpy().astype('int32')
+
+# Counts the number of features 
+num_col = train_X.shape[1]
+
+# Deep Neural Network using keras 
+
+input = keras.Input(shape=(num_col,)) # Input layer
+
+h1 = keras.layers.Dense(8,activation="relu")(input) # First hidden layer
+
+output = keras.layers.Dense(3,activation="softmax")(h1) # Output layer
+
+model = keras.Model(input, output) # Model declaration and giving input and output values to the model to work on.
+
+print(model.summary()) # To print model's summary such number of trainable parameters etc.
+
+model.compile(
+    optimizer="adam",
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"]
+) # Model compilation means the attributes of model we want to use according tot he type of problem and dataset.
+
+history = model.fit(
+    train_X, train_Y,
+    epochs=50,
+    batch_size=128,
+    verbose=1,
+    validation_split=0.2
+    ) # To train model giving model the data to train on.
+
+model.save("risk_classifier") # Saving model's paramters to use later.
+
+# Loss graph
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+
+plt.title('Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+
+plt.legend(['Train Loss', 'Validation Loss'])
+
+plt.show()
+
+# Accuracy Graph
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+
+plt.title('Model Accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train Accuracy', 'Validation Accuracy'])
+
+plt.show()
+
